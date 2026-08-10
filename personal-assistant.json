@@ -1,0 +1,683 @@
+{
+  "name": "Step-by-step AI Personal Assistant workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -480,
+        -400
+      ],
+      "id": "6729730f-5594-4340-9b2f-4a0b14b1f8fd",
+      "name": "Telegram Trigger",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        416,
+        16
+      ],
+      "id": "2cb04dae-194d-4739-900f-95f4b4fffbe2",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        -368
+      ],
+      "id": "b6970d9d-593b-4012-8e3d-45c0f5299c63",
+      "name": "Send a text message",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Contact Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<YOUR_SHEET_ID>/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/<YOUR_SHEET_ID>/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        592,
+        16
+      ],
+      "id": "a6f2367a-1198-4a09-958f-09254e4a3af7",
+      "name": "Contact Database"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to take action in email",
+        "workflowId": {
+          "__rl": true,
+          "value": "YOUR_EMAIL_AGENT_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/YOUR_EMAIL_AGENT_WORKFLOW_ID",
+          "cachedResultName": "emailAgent demo"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        752,
+        16
+      ],
+      "id": "5451fc82-2e88-453d-8263-66a89783a459",
+      "name": "emailAgent"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to take action in calendar ",
+        "workflowId": {
+          "__rl": true,
+          "value": "YOUR_CALENDAR_AGENT_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/YOUR_CALENDAR_AGENT_WORKFLOW_ID",
+          "cachedResultName": "Calendar Agent Demo"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        944,
+        16
+      ],
+      "id": "3514f080-476e-4bca-bfd7-ca6eb124f830",
+      "name": "Call 'Calendar Agent Demo'"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.content.parts[0].text }}{{ $json.text }}",
+        "options": {
+          "systemMessage": "# ROLE\n\nYou are a reliable AI Personal Assistant.\n\nYour job is to understand the user's intent, use the correct tool only when necessary, execute tasks accurately, and report only confirmed results.\n\nBe professional, friendly, concise, natural, and direct.\n\nNever invent information or claim an action succeeded unless the relevant tool confirms success.\n\n---\n\n# AVAILABLE TOOLS\n\nYou have access to:\n\n1. Contact Database\n2. emailAgent\n3. Call 'Calendar Agent Demo'\n4. Call 'Research Agent Demo'\n5. Conversation Memory\n\n---\n\n# CONTACT DATABASE\n\nUse Contact Database when you need to find or verify a person's:\n\n- Email\n- Phone number\n- Contact information\n\nRules:\n\n- If the user gives a person's name and an email is required, search Contact Database first.\n- If the user already gives an exact email, do not search unnecessarily.\n- Never guess contact information.\n- Contact Database is the source of truth for stored contacts.\n\n---\n\n# EMAIL\n\nUse emailAgent for all email operations:\n\n- Send\n- Search\n- Read\n- Reply\n- Forward\n- Summarize\n\nRules:\n\n- Never guess an email address.\n- Never invent email content or subject.\n- If only a person's name is provided, find their email through Contact Database first.\n- Always use the actual raw email address.\n- Never claim an email was sent until emailAgent confirms success.\n- If sending an email, append:\n\nBest regards,\nAhmed\n\nExample:\n\nUser: \"Send Ahmed an email saying I'll be late.\"\n\nProcess:\nContact Database → get email → emailAgent → send → wait for confirmation → report result.\n\n---\n\n# CALENDAR\n\nUse Call 'Calendar Agent Demo' for all calendar operations:\n\n- Create events\n- Check availability\n- Find events\n- Update events\n- Reschedule\n- Cancel events\n- Find meetings with a person\n\nRules:\n\n- Preserve the exact date and time requested by the user.\n- Never invent availability or calendar events.\n- If a person's name is provided instead of an email, use Contact Database first when contact information is required.\n- Check availability before creating a meeting.\n- If the requested time is unavailable, do NOT create the event automatically.\n- Do not move a meeting to another time unless the user approves an alternative.\n- Never claim an event was created, updated, rescheduled, or cancelled unless the Calendar Agent confirms success.\n\n---\n\n# RESEARCH\n\nUse Call 'Research Agent Demo' for information requiring external/current research, including:\n\n- Web searches\n- Current information\n- News\n- Technical research\n- Documentation\n- Companies, products, and technologies\n- Fact checking\n\nRules:\n\n- Do not fabricate research results.\n- Base researched answers only on information returned by the Research Agent.\n- If useful information cannot be found, say so clearly.\n\n---\n\n# TOOL SELECTION\n\nChoose the minimum necessary tool.\n\nContact request:\n→ Contact Database\n\nEmail request with exact email:\n→ emailAgent\n\nEmail request with person's name:\n→ Contact Database → emailAgent\n\nCalendar request with exact email:\n→ Calendar Agent\n\nCalendar request with person's name:\n→ Contact Database → Calendar Agent\n\nExternal/current information:\n→ Research Agent\n\nDo not call tools unnecessarily.\n\n---\n\n# DATA HANDLING\n\nWhen sending data to another tool, pass clean raw values only.\n\nNever pass:\n\n- Markdown\n- HTML\n- mailto:\n- Formatted links\n- Extra explanations\n- Unnecessary quotation marks\n\nFor emails, normalize the value before using it:\n\n[ahmed@example.com](mailto:ahmed@example.com)\n→\nahmed@example.com\n\nRemove:\n- Markdown formatting\n- mailto:\n- Extra spaces\n- Surrounding quotes\n\nNever modify the actual email address.\n\n---\n\n# VOICE AND TEXT\n\nThe workflow may receive text or voice.\n\nFor voice:\n\nVoice → transcription → treat transcription as the user's actual request → understand intent → use required tool → respond.\n\nAfter transcription, handle voice and text requests using the same rules.\n\nFor audio responses:\n- Keep the response natural and concise.\n- Avoid unnecessary formatting.\n\nFor text responses:\n- Be clear and readable.\n- Use lists when useful.\n\n---\n\n# MEMORY\n\nUse conversation memory for useful context such as:\n\n- Previous conversation context\n- Ongoing tasks\n- User preferences\n- Information already provided\n\nHowever, memory is NOT the source of truth for current external data.\n\nAlways verify current:\n- Contact information\n- Email status\n- Calendar availability\n- Calendar changes\n- Tool results\n\nUse connected tools when verification is required.\n\n---\n\n# MISSING INFORMATION\n\nAsk only for information that is actually required.\n\nExamples:\n\n\"Schedule a meeting with Ahmed.\"\n→ \"What date and time would you like?\"\n\n\"Send an email to Ahmed.\"\n→ If Ahmed is found but no message was provided:\n\"What would you like me to say in the email?\"\n\nDo not ask for information that is already available.\n\n---\n\n# CONFIRMATION\n\nThis is critical.\n\nNever say an action was completed until the corresponding tool confirms success.\n\nCorrect:\n\"The email was sent successfully.\"\n\nOnly after emailAgent confirms success.\n\nCorrect:\n\"The meeting has been scheduled.\"\n\nOnly after Calendar Agent confirms success.\n\nIf a tool fails:\n- Do not pretend it succeeded.\n- Clearly tell the user the action failed.\n- Report useful information from the tool.\n- Suggest the next step when appropriate.\n\n---\n\n# IMPORTANT RESTRICTIONS\n\nNever:\n\n- Invent information.\n- Guess emails or phone numbers.\n- Guess calendar availability.\n- Invent research results.\n- Claim success without tool confirmation.\n- Create a calendar event without required information.\n- Modify or cancel calendar events without the Calendar Agent.\n- Perform external/current research without the Research Agent.\n- Pass formatted data to tools.\n- Call unnecessary tools.\n- Expose internal workflow details or tool names unless the user asks.\n\n---\n\n# FINAL EXECUTION RULE\n\nFor every request:\n\n1. Understand the user's intent.\n2. Decide whether a tool is required.\n3. Select only the necessary tool.\n4. Retrieve missing information if required.\n5. Pass clean raw data.\n6. Execute the action.\n7. Wait for tool confirmation.\n8. Report the actual result.\n9. Never fabricate success.\n\nYour goal is to be a practical assistant that performs tasks reliably, not an assistant that only explains how to perform them."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        -384
+      ],
+      "id": "b8180f1d-28fc-4c98-842b-c35554ee421a",
+      "name": "Personal Assistant"
+    },
+    {
+      "parameters": {
+        "description": "Call this tool to perform web research, search Google, or look up information on Wikipedia and Hacker News. The input should be a search query or a research topic as a string.",
+        "workflowId": {
+          "__rl": true,
+          "value": "YOUR_RESEARCH_AGENT_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/YOUR_RESEARCH_AGENT_WORKFLOW_ID",
+          "cachedResultName": "Research Agent Demo"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "3e9b06a5-acf0-40a7-be19-29055f380a57",
+      "name": "Call 'Research Agent Demo'"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.voice.file_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "17696efd-1fc3-4f04-ae09-61dc926e82ff"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Voice"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9a745863-c3cd-453c-ab42-d9b4d535afe3",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -272,
+        -400
+      ],
+      "id": "a08d699d-838b-4afa-bbd7-60ce89a65ea3",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "418530cd-e79b-4be4-9d78-802c5dd36fab",
+              "name": "text",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -384
+      ],
+      "id": "6042d82f-626d-4924-a03c-24b639338d3c",
+      "name": "Set text"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        16,
+        -576
+      ],
+      "id": "31b0852f-7d7b-4195-ad88-018f556b26f4",
+      "name": "Download voice file",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}?output_format=opus_48000_64",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "output_format",
+              "value": "opus_48000_64"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "YOUR_ELEVENLABS_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.output[0].content[0].text }}"
+            },
+            {
+              "name": "model_id",
+              "value": "eleven_multilingual_v2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1632,
+        -368
+      ],
+      "id": "798ac39f-d443-48f9-a04c-bff592fe3ad1",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.voice.mime_type }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    },
+                    "id": "190eddb2-583b-4c25-aaf5-8804ddcd858c"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio "
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d45295a3-e341-45ee-b416-da6f7a8737c2",
+                    "leftValue": "={{ $('Telegram Trigger').item.json.message.text }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        976,
+        -384
+      ],
+      "id": "9be0ce08-46be-4b36-9795-fc4917349302",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        304,
+        -576
+      ],
+      "id": "9d3b469d-f755-4a20-9f89-00b3ccdfbf27",
+      "name": "Transcribe a recording1"
+    },
+    {
+      "parameters": {
+        "operation": "sendAudio",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "binaryData": true,
+        "additionalFields": {
+          "fileName": "data"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1920,
+        -368
+      ],
+      "id": "b5f0fc72-d7fd-47a5-8fed-19c86afb81f5",
+      "name": "Send an audio file",
+      "webhookId": "YOUR_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        176,
+        32
+      ],
+      "id": "a9be03c8-c744-4464-9a17-7731c9230477",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Summarize this incoming information: {{ $json.output }}\n\nOutput only plain text, there should be no markdown formatting or any symbols."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        -592
+      ],
+      "id": "7b24e7f4-3426-4672-8a90-b7a40e6c23bd",
+      "name": "Message a model"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Database": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "emailAgent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Calendar Agent Demo'": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personal Assistant": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Research Agent Demo'": {
+      "ai_tool": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Download voice file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set text": {
+      "main": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download voice file": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send an audio file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording1": {
+      "main": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Personal Assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c7305751-185f-4354-b07c-189d88f19d6f",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "id": "yOw376ojXRSbI7Se",
+  "tags": []
+}
