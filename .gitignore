@@ -1,0 +1,12 @@
+# n8n / secrets
+.env
+.env.*
+*.env
+
+# Credentials / private files
+credentials.json
+secrets.json
+
+# OS files
+Thumbs.db
+.DS_Store
