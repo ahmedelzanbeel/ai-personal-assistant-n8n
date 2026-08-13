@@ -399,12 +399,14 @@ This project demonstrates practical competence in:
 * Support for Microsoft Outlook and Teams APIs
 * Long-term vector database memory for personal preferences
 * Human-in-the-loop approval steps for destructive actions such as deleting emails or calendar events
+  
 ## 🎥 Demo
 
-Watch the full end-to-end demo of the AI Personal Assistant:
+🎬 **Full End-to-End Demo**
 
-[▶️ Watch the Demo]([PASTE_GOOGLE_DRIVE_LINK_HERE](https://drive.google.com/file/d/1tjMiGuLNnU2VFwJOWxfRM6qwvy8ezT-h/view?usp=sharing))
+[▶️ Watch the AI Personal Assistant Demo](https://drive.google.com/file/d/1tjMiGuLNnU2VFwJOWxfRM6qwvy8ezT-h/view?usp=sharing)
 
+The demo shows the assistant handling voice and text requests, calendar scheduling, contact lookup, email operations, web research, and multi-agent task orchestration.
 ---
 
 ## 👨‍💻 Author
